@@ -26,7 +26,7 @@ const chatServiceSid = ENV_VARS.TWILIO_CHAT_SERVICE_SID || '';
 
 const client = twilio(apiKey, apiSecret, { accountSid });
 
-// Add APIs, must be after middleware
+// NOTE there is link on twilio conversations docs https://www.twilio.com/docs/conversations and https://www.twilio.com/docs/conversations/api
 app.get('/twilio-token', (req, res) => {
   const identity = req.query.identity as string;
 
@@ -41,14 +41,10 @@ app.get('/twilio-token', (req, res) => {
     serviceSid: chatServiceSid,
   });
 
-  const token = new AccessToken(accountSid, apiKey, apiSecret, {
-    identity,
-  });
+  const token = new AccessToken(accountSid, apiKey, apiSecret, { identity });
   token.addGrant(chatGrant);
 
-  res.send({
-    token: token.toJwt(),
-  });
+  res.send({ token: token.toJwt() });
 });
 
 app.get('/conversations', async (req, res) => {
@@ -64,8 +60,7 @@ app.post('/add-participant', async (req: IReq<{ conversationSid: string, identit
   const { conversationSid, identity } = req.body;
 
   try {
-    const participant = await client.conversations.v1.conversations(conversationSid)
-      .participants.create({ identity });
+    const participant = await client.conversations.v1.conversations(conversationSid).participants.create({ identity });
     res.send(participant);
   } catch (error) {
     res.status(500).send(error);
