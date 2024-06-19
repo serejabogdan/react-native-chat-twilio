@@ -4,5 +4,6 @@ module.exports = {
   rules: {
     'no-shadow': 'off',
     '@typescript-eslint/no-shadow': 'off',
+    'react-hooks/exhaustive-deps': 'warn',
   },
 };

@@ -8,9 +8,8 @@ import {
 
 // NOTE docs for client https://sdk.twilio.com/js/conversations/releases/2.1.0/docs/index.html
 
-const REACT_APP_PORT = process.env.REACT_APP_PORT;
-const REACT_APP_BASE = process.env.REACT_APP_BASE;
-const BASE = `${REACT_APP_BASE}:${REACT_APP_PORT}`;
+// CHANGE IT BY YOURS LOCAL IP
+const API_BASE = 'http://192.168.0.106:4000';
 
 export default function App() {
   // identity is a user identifier
@@ -34,37 +33,37 @@ function Chat({identity}: {identity: string}) {
   const [client, setClient] = useState<TwilioClient | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[] | null>(null);
+  const [input, setInput] = useState('');
 
   useEffect(() => {
     const initClient = async () => {
-      const {token} = await fetch(`${BASE}/twilio-token?identity=${identity}`, {
-        method: 'GET',
-        headers: {
-          'Content-type': 'application/json',
+      const result = await fetch(
+        `${API_BASE}/twilio-token?identity=${identity}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-type': 'application/json',
+          },
         },
-      }).then(v => v.json());
+      );
+      const {token} = await result.json();
       const newClient = new TwilioClient(token);
-
-      // get conversation of some
-      const {sid} = await fetch(`${BASE}/conversations`, {
+      const {sid} = await fetch(`${API_BASE}/conversations`, {
         method: 'GET',
         headers: {
           'Content-type': 'application/json',
         },
       }).then(v => v.json());
 
-      // get conversation by its sid
       const conversation = await newClient.getConversationBySid(sid);
 
-      // subscribe on new messages in current conversation
       conversation.on('messageAdded', message => {
         console.log(message);
         setMessages(prevMessages =>
-          !prevMessages ? [message] : [...prevMessages, message],
+          !prevMessages ? [] : [...prevMessages, message],
         );
       });
 
-      // get messages of conversation to initialize the chat
       const messages = await conversation.getMessages();
 
       setClient(newClient);
@@ -76,15 +75,15 @@ function Chat({identity}: {identity: string}) {
 
     return () => {
       if (client) {
-        // remove all listeners
         client.shutdown();
       }
     };
-  }, [identity, client]);
+  }, []);
 
-  const sendMessage = async (input: string) => {
+  const sendMessage = async () => {
     if (conversation && input) {
       await conversation.sendMessage(input);
+      setInput('');
     }
   };
 
@@ -98,56 +97,33 @@ function Chat({identity}: {identity: string}) {
 
   return (
     <View style={{flex: 1, padding: 10}}>
-      <MessageList messages={messages} />
-      <MessageInput onSend={sendMessage} />
-    </View>
-  );
-}
-
-const MessageInput = ({onSend}: {onSend: (input: string) => void}) => {
-  const [input, setInput] = useState('');
-
-  const handleSend = () => {
-    onSend(input);
-    setInput('');
-  };
-
-  return (
-    <View>
+      {!messages.length ? (
+        <View>
+          <Text>No messages</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={messages}
+          keyExtractor={item => item.sid}
+          renderItem={({item}) => (
+            <View
+              style={{
+                padding: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: '#ccc',
+              }}>
+              <Text>{item.author}</Text>
+              <Text>{item.body}</Text>
+            </View>
+          )}
+        />
+      )}
       <TextInput
         value={input}
         onChangeText={setInput}
         style={{borderWidth: 1, padding: 5, marginVertical: 10}}
       />
-      <Button title="Send" onPress={handleSend} />
+      <Button title="Send" onPress={sendMessage} />
     </View>
   );
-};
-
-const MessageList = ({messages}: {messages: Message[]}) => (
-  <View>
-    {!messages.length ? (
-      <View>
-        <Text>No messages</Text>
-      </View>
-    ) : (
-      <FlatList
-        data={messages}
-        keyExtractor={item => item.sid}
-        renderItem={({item}) => <MessageItem message={item} />}
-      />
-    )}
-  </View>
-);
-
-const MessageItem = ({message}: {message: Message}) => (
-  <View
-    style={{
-      padding: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: '#ccc',
-    }}>
-    <Text>{message.author}</Text>
-    <Text>{message.body}</Text>
-  </View>
-);
+}
